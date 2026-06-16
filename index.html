@@ -199,6 +199,55 @@
   .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
   .pct-legend { font-size: 0.75rem; color: #64748b; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .empty { padding: 40px; text-align: center; color: #94a3b8; font-size: 0.9rem; }
+
+  /* ── UPLOAD BUTTON & MODAL ── */
+  .upload-csv-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 18px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer;
+    border: 2px solid #2563eb; background: #2563eb; color: #fff; transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .upload-csv-btn:hover { background: #1d4ed8; border-color: #1d4ed8; }
+  .upload-csv-btn svg { flex-shrink: 0; }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; backdrop-filter: blur(2px);
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal-card {
+    background: #fff; border-radius: 16px; padding: 36px 40px;
+    max-width: 480px; width: 92%; box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    position: relative;
+  }
+  .modal-card h3 { font-size: 1.15rem; font-weight: 800; color: #1e293b; margin-bottom: 6px; }
+  .modal-card p  { font-size: 0.84rem; color: #64748b; margin-bottom: 22px; line-height: 1.6; }
+  .modal-close {
+    position: absolute; top: 14px; right: 16px; background: none; border: none;
+    font-size: 1.3rem; cursor: pointer; color: #94a3b8; line-height: 1;
+  }
+  .modal-close:hover { color: #334155; }
+  .drop-zone {
+    border: 2px dashed #cbd5e1; border-radius: 12px; padding: 30px 20px;
+    text-align: center; cursor: pointer; background: #f8fafc;
+    transition: all 0.2s; margin-bottom: 16px;
+  }
+  .drop-zone:hover, .drop-zone.dragover { border-color: #2563eb; background: #eff6ff; }
+  .drop-zone .dz-icon { font-size: 2rem; margin-bottom: 8px; }
+  .drop-zone .dz-text { font-size: 0.88rem; color: #475569; font-weight: 600; }
+  .drop-zone .dz-sub  { font-size: 0.75rem; color: #94a3b8; margin-top: 4px; }
+  .browse-btn {
+    display: inline-block; background: #2563eb; color: #fff;
+    padding: 9px 24px; border-radius: 8px; font-size: 0.85rem;
+    font-weight: 700; cursor: pointer; border: none; transition: background 0.15s;
+  }
+  .browse-btn:hover { background: #1d4ed8; }
+  #csvFileInput { display: none; }
+  .upload-msg { margin-top: 12px; font-size: 0.82rem; min-height: 20px; text-align: center; }
+  .upload-msg.success { color: #059669; font-weight: 600; }
+  .upload-msg.error   { color: #dc2626; font-weight: 600; }
+  .upload-msg.loading { color: #2563eb; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -206,9 +255,32 @@
 <header>
   <div>
     <h1>Moving Average Calculator</h1>
-    <span>June 2026 · Q2 · 1,002 Products · Days 1–16</span>
+    <span id="headerSubtitle">June 2026 · Q2 · 1,002 Products · Days 1–16</span>
   </div>
+  <button class="upload-csv-btn" onclick="openUploadModal()">
+    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+    Upload CSV
+  </button>
 </header>
+
+<!-- UPLOAD MODAL -->
+<div class="modal-overlay hidden" id="uploadModal">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeUploadModal()">✕</button>
+    <h3>Upload Monthly Sales CSV</h3>
+    <p>Export your data from Tableau as a <strong>.csv</strong> file, then upload it here to refresh the dashboard with new data.</p>
+    <div class="drop-zone" id="dropZone">
+      <div class="dz-icon">📂</div>
+      <div class="dz-text">Drag &amp; drop your CSV here</div>
+      <div class="dz-sub">Supports UTF-16 and UTF-8 encoding</div>
+    </div>
+    <label for="csvFileInput" class="browse-btn">Browse File</label>
+    <input type="file" id="csvFileInput" accept=".csv">
+    <div class="upload-msg" id="uploadMsg"></div>
+  </div>
+</div>
 
 <div class="controls">
   <div class="ctrl-group">
@@ -528,6 +600,155 @@ function render(){
 }
 
 function goPage(n){const sx=getScrollX();currentPage=n;render();setScrollX(sx);}
+
+// ── CSV UPLOAD ──
+function openUploadModal(){
+  document.getElementById('uploadModal').classList.remove('hidden');
+  document.getElementById('uploadMsg').textContent='';
+  document.getElementById('uploadMsg').className='upload-msg';
+  document.getElementById('csvFileInput').value='';
+}
+function closeUploadModal(){
+  document.getElementById('uploadModal').classList.add('hidden');
+}
+document.getElementById('uploadModal').addEventListener('click', e => {
+  if(e.target === document.getElementById('uploadModal')) closeUploadModal();
+});
+document.addEventListener('keydown', e => {
+  if(e.key==='Escape') closeUploadModal();
+});
+
+const dropZone = document.getElementById('dropZone');
+const csvFileInput = document.getElementById('csvFileInput');
+dropZone.addEventListener('click', () => csvFileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  if(e.dataTransfer.files[0]) handleUpload(e.dataTransfer.files[0]);
+});
+csvFileInput.addEventListener('change', e => {
+  if(e.target.files[0]) handleUpload(e.target.files[0]);
+});
+
+function handleUpload(file) {
+  const msg = document.getElementById('uploadMsg');
+  msg.className = 'upload-msg loading';
+  msg.textContent = 'Reading file…';
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      msg.textContent = 'Parsing CSV…';
+      const buf = e.target.result;
+      const bytes = new Uint8Array(buf);
+      let text;
+      if(bytes[0]===0xFF && bytes[1]===0xFE)      text = new TextDecoder('utf-16le').decode(buf);
+      else if(bytes[0]===0xFE && bytes[1]===0xFF) text = new TextDecoder('utf-16be').decode(buf);
+      else                                         text = new TextDecoder('utf-8').decode(buf);
+      text = text.replace(/^\uFEFF/,'');
+
+      const prods = parseUploadedCSV(text);
+      if(!prods.length) throw new Error('No products found. Check the CSV format.');
+
+      // Rebuild RAW and RANK_MAP
+      RAW.length = 0;
+      prods.forEach(p => RAW.push(p));
+      const newRank = buildRankMapFromRaw();
+      Object.keys(RANK_MAP).forEach(k => delete RANK_MAP[k]);
+      Object.assign(RANK_MAP, newRank);
+
+      const nd = prods[0].values.length;
+      expandedDays = new Set(Array.from({length: nd - 1}, (_,i) => i));
+      globalCollapsed = false;
+      selIdx = null; selectedCat = 'All'; searchTerm = ''; sortCol = 'total'; sortDir = 'desc'; currentPage = 1;
+
+      document.getElementById('headerSubtitle').textContent = `${prods.length} Products · Days 1–${nd}`;
+      document.getElementById('chartCard').style.display = 'none';
+      document.getElementById('statsRow').style.display = 'none';
+      document.getElementById('prodSearchInput').value = '';
+      document.getElementById('searchBox').value = '';
+      document.getElementById('collapseBtnText').textContent = 'Collapse Previous Days';
+      document.getElementById('collapseBtn').classList.remove('collapsed');
+
+      // Rebuild category pills
+      const cats=['All',...new Set(RAW.map(p=>p.category))];
+      document.getElementById('categoryPills').innerHTML=cats.map(c=>
+        `<div class="pill${c==='All'?' active':''}" data-cat="${c}" onclick="setCat('${c}')">${c==='All'?'All Categories':c}</div>`
+      ).join('');
+
+      render();
+
+      msg.className = 'upload-msg success';
+      msg.textContent = `✓ Loaded ${prods.length} products across ${nd} days successfully!`;
+      setTimeout(() => closeUploadModal(), 1800);
+
+    } catch(err) {
+      msg.className = 'upload-msg error';
+      msg.textContent = '⚠️ ' + err.message;
+    }
+  };
+  reader.onerror = () => {
+    document.getElementById('uploadMsg').className = 'upload-msg error';
+    document.getElementById('uploadMsg').textContent = 'Failed to read file.';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseUploadedCSV(text) {
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  const firstLines = lines.slice(0,10).join('\n');
+  const delim = (firstLines.match(/\t/g)||[]).length >= (firstLines.match(/,/g)||[]).length ? '\t' : ',';
+
+  let headerIdx = -1;
+  for(let i=0; i<Math.min(lines.length,20); i++){
+    if(lines[i].toLowerCase().includes('main category') || lines[i].toLowerCase().includes('category')){
+      headerIdx = i; break;
+    }
+  }
+  if(headerIdx === -1) throw new Error('Cannot find header row with "Main Category".');
+
+  const headers = lines[headerIdx].split(delim).map(h => h.trim().replace(/^"|"$/g,''));
+  let dayStart = -1, numDays = 0;
+  for(let i=0; i<headers.length; i++){
+    if(/^\d+$/.test(headers[i])){
+      if(dayStart===-1) dayStart=i;
+      numDays++;
+    }
+  }
+  if(dayStart===-1){ dayStart=2; numDays=headers.length-2; }
+  if(numDays===0) throw new Error('Cannot find day columns (1, 2, 3…) in header.');
+
+  const prods = [];
+  for(let i=headerIdx+1; i<lines.length; i++){
+    const line = lines[i].trim();
+    if(!line) continue;
+    const parts = line.split(delim).map(p=>p.trim().replace(/^"|"$/g,''));
+    if(parts.length < dayStart+1) continue;
+    const cat=parts[0], name=parts[1];
+    if(!cat||!name||cat.toLowerCase().includes('grand total')||name.toLowerCase().includes('grand total')) continue;
+    const values = [];
+    for(let d=dayStart; d<dayStart+numDays; d++){
+      const raw=((parts[d]||'')).replace(/\$|,|\s/g,'');
+      const val=parseFloat(raw);
+      values.push(isNaN(val)?null:val);
+    }
+    if(values.some(v=>v!==null)) prods.push({category:cat, name, values});
+  }
+  return prods;
+}
+
+function buildRankMapFromRaw(){
+  const scored = RAW.map(p => {
+    const nn=p.values.filter(v=>v!==null);
+    if(!nn.length) return null;
+    const total=nn.reduce((a,b)=>a+b,0);
+    const lma3=lastVal(maCalc(p.values,3))||0;
+    return {name:p.name, total:Math.round(total*100)/100, lma3:Math.round(lma3*100)/100, score:total*lma3};
+  }).filter(Boolean).sort((a,b)=>b.score-a.score);
+  const map={};
+  scored.forEach((r,i)=>{ map[r.name]={rank:i+1, total:r.total, lma3:r.lma3, score:r.score}; });
+  return map;
+}
 
 render();
 </script>
